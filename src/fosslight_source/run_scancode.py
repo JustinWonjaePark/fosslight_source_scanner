@@ -33,9 +33,11 @@ def main():
     write_json_file = False
     output_file = ""
     print_matched_text = False
+    run_scanoss = False
 
     try:
-        opts, args = getopt.getopt(argv, 'hmjp:o:')
+#        opts, args = getopt.getopt(argv, 'hmjp:o:')
+        opts, args = getopt.getopt(argv, 'hmjxp:o:')
         for opt, arg in opts:
             if opt == "-h":
                 print_help_msg_source()
@@ -47,14 +49,52 @@ def main():
                 output_file = arg
             elif opt == "-m":
                 print_matched_text = True
+            elif opt == "-x":
+                run_scanoss = True
     except Exception:
         print_help_msg_source()
 
     timer = TimerThread()
     timer.setDaemon(True)
     timer.start()
-    run_scan(path_to_scan, output_file, write_json_file, -1, False, print_matched_text)
+    if run_scanoss == True:
+#        os.system("echo Hello from the other side!")
+#        os.system("scanoss-py")
+#        run_scanoss_py()
+        print("Path to Scan : " + path_to_scan)
+        print("Output File  : " + output_file)
+        run_scanoss_py(path_to_scan, output_file)
+#        os.system(path_to_scan)
+    else:
+        run_scan(path_to_scan, output_file, write_json_file, -1, False, print_matched_text)
+#    run_scan(path_to_scan, output_file, write_json_file, -1, False, print_matched_text)
 
+#def run_scanoss_py():
+#    print("in the function")
+
+#def run_scanoss_py(path_to_scan, output_file_name=""):
+#    print(path_to_scan)
+
+def run_scanoss_py(path_to_scan, output_file_name=""):
+    scan_command = "scanoss-py scan -o "
+
+    _windows = platform.system() == "Windows"
+    start_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+    if output_file_name == "":
+        output_file = "SCANOSS_FOSSLight-Report_" + start_time + ".json"
+#        output_json_file = "scancode_" + start_time
+        output_dir = os.getcwd()
+    else:
+        output_file = output_file_name + ".json"
+#        output_json_file = output_file_name
+        output_dir = os.path.dirname(os.path.abspath(output_file_name))
+   
+    scan_command += output_file + " "
+    scan_command += path_to_scan
+    print(scan_command)
+    os.system(scan_command)
+#                            _result_log["FOSSLight Report"] = output_file + ".xlsx"
 
 def run_scan(path_to_scan, output_file_name="",
              _write_json_file=False, num_cores=-1, return_results=False, need_license=False):
