@@ -1,63 +1,24 @@
-name: Build and Release FOSSLight Source
+- name: Install Dependencies
+shell: bash
+run: |
+  python -m venv venv
+  if [ "${{ runner.os }}" = "Windows" ]; then
+    source venv/Scripts/activate
+  else
+    source venv/bin/activate
+  fi
+  python -m pip install --upgrade pip
+  pip install . 
+  pip install pyinstaller
 
-on:
-  push:
-    tags:
-      - 'v*'
-
-jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-        include:
-          - os: windows-latest
-            artifact_name: fosslight_source.exe
-          - os: macos-latest
-            artifact_name: fosslight_source_mac
-          - os: ubuntu-latest
-            artifact_name: fosslight_source_linux
-
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10' # 에러 메시지에 따라 3.10으로 상향
-
-      - name: Install Dependencies
-        shell: bash # 모든 OS에서 bash 문법을 사용하도록 고정
-        run: |
-          python -m venv venv
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            source venv/Scripts/activate
-          else
-            source venv/bin/activate
-          fi
-          pip install --upgrade pip
-          pip install . 
-          pip install pyinstaller
-
-      - name: Build with PyInstaller
-        shell: bash
-        run: |
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            source venv/Scripts/activate
-          else
-            source venv/bin/activate
-          fi
-          # 실제 엔트리 포인트 파일 확인 필요: fosslight_source/cli.py 가 맞는지 확인하세요.
-          # 만약 파일이 없다면 fosslight_source_scanner/main.py 등으로 수정해야 합니다.
-          pyinstaller --onefile --name ${{ matrix.artifact_name }} fosslight_source/cli.py
-
-      - name: Upload Artifacts to Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: dist/${{ matrix.artifact_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+- name: Build with PyInstaller
+shell: bash
+run: |
+  if [ "${{ runner.os }}" = "Windows" ]; then
+    source venv/Scripts/activate
+  else
+    source venv/bin/activate
+  fi
+  
+  # 수정된 경로: src/fosslight_source/cli.py
+  pyinstaller --onefile --name ${{ matrix.artifact_name }} --clean src/fosslight_source/cli.py
