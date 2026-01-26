@@ -3,23 +3,30 @@ name: Build and Release FOSSLight Source
 on:
   push:
     tags:
-      - 'v*' # v1.0.0 같은 태그 푸시 시 작동
+      - 'v*'
+
+# 권한 문제를 방지하기 위해 YAML 내부에도 명시적으로 권한 부여
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: false
+      fail-fast: false 
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        # macos-13은 Intel, macos-latest는 Apple Silicon을 위해 추가
+        os: [windows-latest, ubuntu-latest, macos-13, macos-latest]
         include:
           - os: windows-latest
             artifact_name: fosslight_source.exe
-          - os: macos-latest
-            artifact_name: fosslight_source_mac
           - os: ubuntu-latest
             artifact_name: fosslight_source_linux
-
+          - os: macos-13
+            artifact_name: fosslight_source_mac_intel
+          - os: macos-latest
+            artifact_name: fosslight_source_mac_arm
+            
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -50,8 +57,6 @@ jobs:
           else
             source venv/bin/activate
           fi
-          
-          # src 경로 인식 보강
           export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           pyinstaller --onefile --name ${{ matrix.artifact_name }} --clean src/fosslight_source/cli.py
 
