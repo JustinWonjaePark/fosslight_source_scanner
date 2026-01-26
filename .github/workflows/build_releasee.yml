@@ -56,8 +56,6 @@ jobs:
           
           export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           
-          # Scancode-toolkit의 동적 플러그인 로딩 문제를 해결하기 위해 
-          # 주요 의존성 패키지들을 통째로 수집하도록 설정합니다.
           pyinstaller --onefile \
                       --name ${{ matrix.artifact_name }} \
                       --clean \
@@ -69,8 +67,11 @@ jobs:
                       --collect-all extractcode \
                       --collect-all typecode \
                       --collect-all summarycode \
+                      --collect-all cluecode \
                       --collect-all plugincode \
                       --collect-all license_expression \
+                      --collect-all text_unidecode \
+                      --collect-all binaryornot \
                       --hidden-import fosslight_source \
                       fosslight_source_launcher.py
 
