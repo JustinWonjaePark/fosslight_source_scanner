@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false 
       matrix:
-        # 인텔 맥 지원을 위해 macos-13을 포함하거나, 유니버설 빌드 전까지는 최신 버전을 사용합니다.
+        # 인텔 맥 지원이 필요하면 나중에 macos-13을 추가하세요.
         os: [windows-latest, ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
@@ -55,15 +55,17 @@ jobs:
             source venv/bin/activate
           fi
           
-          # 상대 경로 임포트 해결을 위한 PYTHONPATH 설정
+          # 패키지 구조 인식을 위한 경로 설정
           export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           
-          # 래퍼 스크립트를 빌드 대상으로 지정
-          # 만약 래퍼 파일명을 다르게 하셨다면 아래 파일명을 수정하세요.
+          # --collect-all 옵션을 추가하여 rfc3987 및 jsonschema의 데이터 파일 강제 포함
           pyinstaller --onefile \
                       --name ${{ matrix.artifact_name }} \
                       --clean \
                       --paths src \
+                      --collect-all rfc3987_syntax \
+                      --collect-all rfc3987 \
+                      --collect-all jsonschema \
                       --hidden-import fosslight_source \
                       fosslight_source_launcher.py
 
