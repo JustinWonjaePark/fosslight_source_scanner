@@ -1,24 +1,64 @@
-- name: Install Dependencies
-shell: bash
-run: |
-  python -m venv venv
-  if [ "${{ runner.os }}" = "Windows" ]; then
-    source venv/Scripts/activate
-  else
-    source venv/bin/activate
-  fi
-  python -m pip install --upgrade pip
-  pip install . 
-  pip install pyinstaller
+name: Build and Release FOSSLight Source
 
-- name: Build with PyInstaller
-shell: bash
-run: |
-  if [ "${{ runner.os }}" = "Windows" ]; then
-    source venv/Scripts/activate
-  else
-    source venv/bin/activate
-  fi
-  
-  # 수정된 경로: src/fosslight_source/cli.py
-  pyinstaller --onefile --name ${{ matrix.artifact_name }} --clean src/fosslight_source/cli.py
+on:
+  push:
+    tags:
+      - 'v*' # v1.0.0 같은 태그 푸시 시 작동
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            artifact_name: fosslight_source.exe
+          - os: macos-latest
+            artifact_name: fosslight_source_mac
+          - os: ubuntu-latest
+            artifact_name: fosslight_source_linux
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        shell: bash
+        run: |
+          python -m venv venv
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            source venv/Scripts/activate
+          else
+            source venv/bin/activate
+          fi
+          python -m pip install --upgrade pip
+          pip install -e . 
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            source venv/Scripts/activate
+          else
+            source venv/bin/activate
+          fi
+          
+          # src 경로 인식 보강
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+          pyinstaller --onefile --name ${{ matrix.artifact_name }} --clean src/fosslight_source/cli.py
+
+      - name: Upload Artifacts to Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist/${{ matrix.artifact_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
