@@ -5,7 +5,6 @@ on:
     tags:
       - 'v*'
 
-# 권한 문제를 방지하기 위해 YAML 내부에도 명시적으로 권한 부여
 permissions:
   contents: write
 
@@ -15,18 +14,16 @@ jobs:
     strategy:
       fail-fast: false 
       matrix:
-        # macos-13은 Intel, macos-latest는 Apple Silicon을 위해 추가
-        os: [windows-latest, ubuntu-latest, macos-13, macos-latest]
+        # 인텔 맥 지원을 위해 macos-13을 포함하거나, 유니버설 빌드 전까지는 최신 버전을 사용합니다.
+        os: [windows-latest, ubuntu-latest, macos-latest]
         include:
           - os: windows-latest
             artifact_name: fosslight_source.exe
           - os: ubuntu-latest
             artifact_name: fosslight_source_linux
-          - os: macos-13
-            artifact_name: fosslight_source_mac_intel
           - os: macos-latest
-            artifact_name: fosslight_source_mac_arm
-            
+            artifact_name: fosslight_source_mac
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -58,18 +55,17 @@ jobs:
             source venv/bin/activate
           fi
           
-          # 1. PYTHONPATH 설정 (상대 임포트 해결을 위해 src 폴더를 루트로 지정)
+          # 상대 경로 임포트 해결을 위한 PYTHONPATH 설정
           export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           
-          # 2. 빌드 명령어 수정
-          # --paths 옵션으로 소스 루트를 명시하고, 
-          # cli.py 내부의 상대 경로를 절대 경로처럼 찾을 수 있게 보조합니다.
+          # 래퍼 스크립트를 빌드 대상으로 지정
+          # 만약 래퍼 파일명을 다르게 하셨다면 아래 파일명을 수정하세요.
           pyinstaller --onefile \
                       --name ${{ matrix.artifact_name }} \
                       --clean \
                       --paths src \
-                      src/fosslight_source/cli.py
-  
+                      --hidden-import fosslight_source \
+                      fosslight_source_launcher.py
 
       - name: Upload Artifacts to Release
         uses: softprops/action-gh-release@v2
