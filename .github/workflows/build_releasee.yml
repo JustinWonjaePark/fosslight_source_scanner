@@ -65,7 +65,10 @@ jobs:
                       --collect-all jsonschema \
                       --collect-all scancode \
                       --collect-all extractcode \
+                      --collect-all extractcode_7z \
+                      --collect-all extractcode_libarchive \
                       --collect-all typecode \
+                      --collect-all typecode_libmagic \
                       --collect-all summarycode \
                       --collect-all cluecode \
                       --collect-all plugincode \
