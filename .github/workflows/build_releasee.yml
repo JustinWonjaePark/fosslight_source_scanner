@@ -80,6 +80,7 @@ jobs:
                       --collect-all intbitset \
                       --collect-all fingerprints \
                       --hidden-import fosslight_source \
+                      --hidden-import intbitset_helper \
                       fosslight_source_launcher.py
 
       - name: Upload Artifacts to Release
