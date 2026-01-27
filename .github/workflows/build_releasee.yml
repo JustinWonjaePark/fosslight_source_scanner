@@ -77,6 +77,8 @@ jobs:
                       --collect-all license_expression \
                       --collect-all text_unidecode \
                       --collect-all binaryornot \
+                      --collect-all intbitset \
+                      --collect-all fingerprints \
                       --hidden-import fosslight_source \
                       fosslight_source_launcher.py
 
