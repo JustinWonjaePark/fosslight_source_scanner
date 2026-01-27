@@ -71,6 +71,8 @@ jobs:
                       --collect-all typecode_libmagic \
                       --collect-all summarycode \
                       --collect-all cluecode \
+                      --collect-all licensedcode \
+                      --collect-all packagedcode \
                       --collect-all plugincode \
                       --collect-all license_expression \
                       --collect-all text_unidecode \
