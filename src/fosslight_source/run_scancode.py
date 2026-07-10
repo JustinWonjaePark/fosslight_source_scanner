@@ -8,7 +8,9 @@ import multiprocessing
 import warnings
 import logging
 from typing import Tuple
-
+from contextlib import contextmanager
+from threading import Event, Thread
+from time import perf_counter
 from scancode import cli
 import fosslight_util.constant as constant
 from fosslight_util.set_log import init_log
@@ -33,6 +35,119 @@ try:
 except ImportError:  # pragma: no cover
     _CLICK_UNSET = None
     _HAS_CLICK_UNSET = False
+
+
+def _start_phase_heartbeat(phase_name: str, interval_seconds: int = 120) -> tuple:
+    stop_event = Event()
+    phase_start = perf_counter()
+
+    def emit_heartbeat() -> None:
+        while not stop_event.wait(interval_seconds):
+            logger.info("%s still running: %.2fs elapsed", phase_name, perf_counter() - phase_start)
+
+    heartbeat_thread = Thread(target=emit_heartbeat, daemon=True)
+    heartbeat_thread.start()
+    return stop_event, heartbeat_thread, phase_start
+
+
+def _stop_phase_heartbeat(
+    stop_event: Event,
+    heartbeat_thread: Thread,
+    phase_name: str,
+    phase_start: float,
+    ignore_count: int = None,
+) -> None:
+    stop_event.set()
+    heartbeat_thread.join(timeout=0)
+    if ignore_count is not None:
+        logger.info("%s finished: %.2fs elapsed (%d ignore patterns)", phase_name, perf_counter() - phase_start, ignore_count)
+        logger.info("Terminating program after pre-scan stage.")
+        import sys
+        sys.exit(0)
+    else:
+        logger.info("%s finished: %.2fs elapsed", phase_name, perf_counter() - phase_start)
+
+
+def _log_scancode_echo(message: str = "", **_kwargs) -> None:
+    if not message:
+        return
+    logger.info("ScanCode: %s", message)
+
+
+@contextmanager
+def _instrument_pre_scan_walk(codebase):
+    original_walk = codebase.__class__.walk
+    walk_start = perf_counter()
+    state = {
+        "seen": 0,
+        "last_log": walk_start,
+    }
+
+    def wrapped_walk(self, topdown=True, skip_root=False, ignored=None):
+        if ignored is None:
+            ignored = original_walk.__defaults__[2]
+        logger.info("Scancode internal stage(pre-scan) walk started: topdown=%s", topdown)
+        for resource in original_walk(self, topdown=topdown, skip_root=skip_root, ignored=ignored):
+            state["seen"] += 1
+            current_time = perf_counter()
+            if current_time - state["last_log"] >= 120:
+                logger.info(
+                    "Scancode internal stage(pre-scan) walk progress: %.2fs elapsed, %d resources seen, current=%s",
+                    current_time - walk_start,
+                    state["seen"],
+                    resource.path,
+                )
+                state["last_log"] = current_time
+            yield resource
+
+    codebase.__class__.walk = wrapped_walk
+    try:
+        yield
+    finally:
+        codebase.__class__.walk = original_walk
+
+
+@contextmanager
+def _instrument_scancode_internal_phases(ignore_count: int = None):
+    original_run_codebase_plugins = cli.run_codebase_plugins
+    original_run_scanners = cli.run_scanners
+
+    def instrumented_run_codebase_plugins(stage, *args, **kwargs):
+        phase_name = f"Scancode internal stage({stage})"
+        logger.info("%s started", phase_name)
+        heartbeat_stop, heartbeat_thread, phase_start = _start_phase_heartbeat(phase_name)
+        try:
+            if stage == 'pre-scan' and args:
+                codebase = args[1] if len(args) > 1 else kwargs.get('codebase')
+                if codebase is not None:
+                    with _instrument_pre_scan_walk(codebase):
+                        return original_run_codebase_plugins(stage, *args, **kwargs)
+            return original_run_codebase_plugins(stage, *args, **kwargs)
+        finally:
+            _stop_phase_heartbeat(
+                heartbeat_stop,
+                heartbeat_thread,
+                phase_name,
+                phase_start,
+                ignore_count if stage == 'pre-scan' else None,
+            )
+
+    def instrumented_run_scanners(stage, *args, **kwargs):
+        phase_name = f"Scancode internal stage({stage})"
+        logger.info("%s started", phase_name)
+        heartbeat_stop, heartbeat_thread, phase_start = _start_phase_heartbeat(phase_name)
+        try:
+            return original_run_scanners(stage, *args, **kwargs)
+        finally:
+            _stop_phase_heartbeat(heartbeat_stop, heartbeat_thread, phase_name, phase_start)
+
+    cli.run_codebase_plugins = instrumented_run_codebase_plugins
+    cli.run_scanners = instrumented_run_scanners
+    try:
+        yield
+    finally:
+        cli.run_codebase_plugins = original_run_codebase_plugins
+        cli.run_scanners = original_run_scanners
 
 
 def _apply_scancode_unset_workaround(kwargs: dict) -> None:
