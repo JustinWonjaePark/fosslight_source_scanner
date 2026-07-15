@@ -540,11 +540,12 @@ def _finalize_temp_output(
         if log:
             log.error(f"Failed to publish scan artifacts: {ex}")
     finally:
-        try:
-            shutil.rmtree(temp_output_path)
-        except Exception as ex:
-            if log:
-                log.debug(f"Failed to cleanup temp output directory: {ex}")
+        pass
+        # try:
+        #     shutil.rmtree(temp_output_path)
+        # except Exception as ex:
+        #     if log:
+        #         log.debug(f"Failed to cleanup temp output directory: {ex}")
     return publish_ok
 
 
