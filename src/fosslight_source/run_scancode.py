@@ -386,10 +386,24 @@ def run_scan(
                     "include": (),
                     "ignore": ignore_tuple,
                     "ignore_binaries": True,
-                    "quiet": hide_progress
+                    "quiet": hide_progress,
+                    "verbose": False,
+                    "echo_func": _log_scancode_echo,
                 }
                 _apply_scancode_unset_workaround(kwargs)
-                rc, results = cli.run_scan(path_to_scan, **kwargs)
+                heartbeat_stop, heartbeat_thread, scancode_run_start = _start_phase_heartbeat(
+                    "Scancode run_scan()",
+                )
+                try:
+                    with _instrument_scancode_internal_phases(ignore_count=len(ignore_tuple)):
+                        rc, results = cli.run_scan(path_to_scan, **kwargs)
+                finally:
+                    _stop_phase_heartbeat(
+                        heartbeat_stop,
+                        heartbeat_thread,
+                        "Scancode run_scan()",
+                        scancode_run_start,
+                    )
                 if not rc:
                     msg = "Source code analysis failed."
                     success = False
